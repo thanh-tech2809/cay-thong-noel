@@ -230,26 +230,25 @@
         }
  
         function setupLights() {
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4); // Giảm sáng môi trường để tạo tương phản
             scene.add(ambient);
- 
-            const innerLight = new THREE.PointLight(0xffaa00, 2, 20);
+        
+            // Ánh sáng vàng ấm từ bên trong cây tỏa ra
+            const innerLight = new THREE.PointLight(0xffaa00, 100, 50); // Tăng cường độ từ 2 lên 100
             innerLight.position.set(0, 5, 0);
             mainGroup.add(innerLight);
- 
-            const spotGold = new THREE.SpotLight(0xffcc66, 1200);
-            spotGold.position.set(30, 40, 40);
-            spotGold.angle = 0.5;
-            spotGold.penumbra = 0.5;
+        
+            // Đèn Spot chiếu từ trên xuống (tạo hiệu ứng lung linh cho hạt vàng)
+            const spotGold = new THREE.SpotLight(0xffeebb, 5000); // Tăng cường độ mạnh lên
+            spotGold.position.set(20, 50, 20);
+            spotGold.angle = 0.4;
+            spotGold.penumbra = 1;
             scene.add(spotGold);
- 
-            const spotBlue = new THREE.SpotLight(0x6688ff, 600);
-            spotBlue.position.set(-30, 20, -30);
-            scene.add(spotBlue);
-             
-            const fill = new THREE.DirectionalLight(0xffeebb, 0.8);
-            fill.position.set(0, 0, 50);
-            scene.add(fill);
+        
+            // Đèn xanh lá để làm nổi bật các khối màu xanh của lá
+            const greenLight = new THREE.DirectionalLight(0x00ff44, 1.5);
+            greenLight.position.set(-20, 10, 20);
+            scene.add(greenLight);
         }
  
         function setupPostProcessing() {
@@ -636,3 +635,4 @@
     </script>
 </body>
 </html
+
