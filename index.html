@@ -482,26 +482,43 @@
         }
  
         function addPhotoToScene(texture) {
+            // 1. Tạo khung ảnh (vẫn giữ hiệu ứng kim loại cho sang trọng)
             const frameGeo = new THREE.BoxGeometry(1.4, 1.4, 0.05);
-            const frameMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0, roughness: 0.1 });
+            const frameMat = new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.champagneGold, 
+                metalness: 1.0, 
+                roughness: 0.1 
+            });
             const frame = new THREE.Mesh(frameGeo, frameMat);
- 
+        
+            // 2. Tạo phần mặt ảnh
             const photoGeo = new THREE.PlaneGeometry(1.2, 1.2);
-            const photoMat = new THREE.MeshBasicMaterial({ map: texture });
+            
+            // SỬA TẠI ĐÂY: Sử dụng MeshBasicMaterial và đảm bảo không bị Bloom làm quá sáng
+            const photoMat = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
             const photo = new THREE.Mesh(photoGeo, photoMat);
             photo.position.z = 0.04;
- 
+        
+            // Ngăn chặn hiệu ứng Bloom (lóe sáng) tác động quá mạnh vào tấm ảnh
+            // Bằng cách đặt giá trị màu sắc vật liệu về mức vừa phải
+            photoMat.color.setScalar(0.9); // Giảm nhẹ độ rực để không bị cháy sáng bởi Bloom
+        
             const group = new THREE.Group();
             group.add(frame);
             group.add(photo);
-             
+            
             const s = 0.8;
             group.scale.set(s,s,s);
-             
+            
             photoMeshGroup.add(group);
             particleSystem.push(new Particle(group, 'PHOTO', false));
         }
-         
+                 
         function handleImageUpload(e) {
             const files = e.target.files;
             if(!files.length) return;
@@ -509,7 +526,9 @@
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     new THREE.TextureLoader().load(ev.target.result, (t) => {
-                        t.colorSpace = THREE.SRGBColorSpace;
+                        // Đảm bảo dùng hệ màu SRGB để ảnh không bị bạc màu hoặc quá đậm
+                        t.colorSpace = THREE.SRGBColorSpace; 
+                        t.needsUpdate = true;
                         addPhotoToScene(t);
                     });
                 }
@@ -635,4 +654,5 @@
     </script>
 </body>
 </html
+
 
