@@ -10,15 +10,12 @@
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding-top: 40px; }
         h1 {
             margin: 0;
-            font-size: 56px;
-            letter-spacing: 6px;
-            text-shadow: 0 0 50px rgba(252, 238, 167, 0.6);
+            font-size: 50px;
             background: linear-gradient(to bottom, #fff, #eebb66);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            opacity: 0.9;
-            pointer-events: none;
+            text-shadow: 0 0 30px rgba(238, 187, 102, 0.3);
         }
         .upload-wrapper { margin-top: 20px; pointer-events: auto; text-align: center; transition: opacity 0.5s; }
         .ui-hidden { opacity: 0; pointer-events: none !important; }
@@ -52,30 +49,28 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
         import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
         const CONFIG = {
-            colors: { bg: 0x000000, champagneGold: 0xffd966, deepGreen: 0x03180a, accentRed: 0x990000 },
+            colors: { bg: 0x000000, champagneGold: 0xffd966, deepGreen: 0x03180a },
             particles: { count: 1200, dustCount: 2000, treeHeight: 24, treeRadius: 8 }
         };
 
-        const STATE = { mode: 'TREE', focusTarget: null, hand: { detected: false, x: 0, y: 0 }, rotation: { x: 0, y: 0 } };
+        const STATE = { mode: 'TREE', hand: { detected: false, x: 0 } };
         let scene, camera, renderer, composer, mainGroup, clock = new THREE.Clock();
-        let particleSystem = [], photoMeshGroup = new THREE.Group(), handLandmarker, video, caneTexture;
+        let particleSystem = [], photoMeshGroup = new THREE.Group(), handLandmarker, video;
 
         async function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(CONFIG.colors.bg);
             camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(0, 2, 50);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ReinhardToneMapping;
             renderer.toneMappingExposure = 2.2;
             document.getElementById('canvas-container').appendChild(renderer.domElement);
@@ -83,9 +78,7 @@
             mainGroup = new THREE.Group();
             scene.add(mainGroup);
 
-            // Lighting
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambient);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
             const spotGold = new THREE.SpotLight(0xffcc66, 100);
             spotGold.position.set(30, 40, 40);
             scene.add(spotGold);
@@ -95,29 +88,28 @@
             setupPostProcessing();
             setupEvents();
             
-            try { await initMediaPipe(); } catch(e) { console.log("Webcam skip"); }
+            try { await initMediaPipe(); } catch(e) { console.log("Webcam hoặc AI bị lỗi, đang chạy chế độ không tương tác."); }
             
             document.getElementById('loader').style.opacity = 0;
-            setTimeout(() => document.getElementById('loader').remove(), 800);
+            setTimeout(() => { if(document.getElementById('loader')) document.getElementById('loader').remove(); }, 800);
             animate();
         }
 
         function createParticles() {
-            const sphereGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const sphereGeo = new THREE.SphereGeometry(0.35, 12, 12);
             const goldMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1, roughness: 0.2 });
             const greenMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.deepGreen });
 
             for (let i = 0; i < CONFIG.particles.count; i++) {
                 const mesh = new THREE.Mesh(sphereGeo, Math.random() > 0.3 ? greenMat : goldMat);
-                const p = new Particle(mesh, 'DECO');
+                particleSystem.push(new Particle(mesh, 'DECO'));
                 mainGroup.add(mesh);
-                particleSystem.push(p);
             }
             mainGroup.add(photoMeshGroup);
         }
 
         function createDust() {
-            const geo = new THREE.TetrahedronGeometry(0.05);
+            const geo = new THREE.TetrahedronGeometry(0.06);
             const mat = new THREE.MeshBasicMaterial({ color: 0xffeebb, transparent: true, opacity: 0.6 });
             for (let i = 0; i < CONFIG.particles.dustCount; i++) {
                 const mesh = new THREE.Mesh(geo, mat);
@@ -128,7 +120,7 @@
 
         class Particle {
             constructor(mesh, type, isDust = false) {
-                this.mesh = mesh; this.type = type; this.isDust = isDust;
+                this.mesh = mesh; this.isDust = isDust;
                 this.posTree = new THREE.Vector3();
                 this.posScatter = new THREE.Vector3();
                 const t = Math.pow(Math.random(), 0.8);
@@ -140,7 +132,7 @@
             }
             update(dt, mode) {
                 let target = (mode === 'TREE') ? this.posTree : this.posScatter;
-                this.mesh.position.lerp(target, 2 * dt);
+                this.mesh.position.lerp(target, 1.8 * dt);
                 if (this.isDust && mode === 'TREE') this.mesh.scale.setScalar(0);
                 else this.mesh.scale.lerp(new THREE.Vector3(1,1,1), 2*dt);
             }
@@ -148,8 +140,8 @@
 
         function addPhotoToScene(texture) {
             const group = new THREE.Group();
-            const frame = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
-            const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), new THREE.MeshBasicMaterial({ map: texture }));
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.1, 0.1), new THREE.MeshStandardMaterial({ color: 0xffd700 }));
+            const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }));
             photo.position.z = 0.06;
             group.add(frame, photo);
             photoMeshGroup.add(group);
@@ -159,17 +151,20 @@
         async function initMediaPipe() {
             const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
+                baseOptions: { 
+                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", 
+                    delegate: "GPU" 
+                },
                 runningMode: "VIDEO", numHands: 1
             });
             video = document.getElementById('webcam');
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             video.srcObject = stream;
-            video.addEventListener("loadeddata", predictWebcam);
+            video.onloadeddata = predictWebcam;
         }
 
         async function predictWebcam() {
-            if (handLandmarker && video.currentTime !== -1) {
+            if (handLandmarker && video.readyState >= 2) {
                 const result = handLandmarker.detectForVideo(video, performance.now());
                 if (result.landmarks && result.landmarks.length > 0) {
                     STATE.hand.detected = true;
@@ -186,7 +181,7 @@
         function setupPostProcessing() {
             composer = new EffectComposer(renderer);
             composer.addPass(new RenderPass(scene, camera));
-            composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.4, 0.85));
+            composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.4, 0.85));
         }
 
         function setupEvents() {
@@ -194,12 +189,14 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
+                composer.setSize(window.innerWidth, window.innerHeight);
             });
             document.getElementById('file-input').addEventListener('change', (e) => {
-                const files = e.target.files;
-                Array.from(files).forEach(f => {
+                Array.from(e.target.files).forEach(f => {
                     const reader = new FileReader();
-                    reader.onload = (ev) => new THREE.TextureLoader().load(ev.target.result, addPhotoToScene);
+                    reader.onload = (ev) => {
+                        new THREE.TextureLoader().load(ev.target.result, (texture) => addPhotoToScene(texture));
+                    };
                     reader.readAsDataURL(f);
                 });
             });
@@ -212,7 +209,7 @@
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
             if (STATE.hand.detected) {
-                mainGroup.rotation.y += (STATE.hand.x * 2 - mainGroup.rotation.y) * dt;
+                mainGroup.rotation.y += (STATE.hand.x * -2.5 - mainGroup.rotation.y) * dt;
             } else {
                 mainGroup.rotation.y += 0.5 * dt;
             }
@@ -224,4 +221,3 @@
     </script>
 </body>
 </html>
-
